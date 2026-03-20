@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-to-Real</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Top Bar -->
+    <div id="top-bar">
+        <!-- Peer connection UI -->
+        <div class="peer-info">
+            <span>Session Link: <a href="#" id="peer-link" target="_blank">...initializing...</a></span>
+            <span id="peer-status" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-container">
+            <button id="upload-btn" class="action-btn">Upload</button>
+            <button id="download-btn" class="action-btn">Download</button>
+        </div>
+    </div>
+
+    <!-- Main DAW canvas -->
+    <canvas id="daw-canvas"></canvas>
+
+    <!-- Hidden file input for directory selection -->
+    <input type="file" id="directory-picker" webkitdirectory directory style="display: none;" />
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
