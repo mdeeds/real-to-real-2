@@ -307,6 +307,11 @@ export class AudioRenderer {
             const rect = this.canvas.getBoundingClientRect();
             const clickX = event.clientX - rect.left;
             this.cursorTime = this.viewOffset + (clickX / this.pixelsPerSecond);
+        } else {
+            // Dispatch event so the app can save the new position/order
+            this.canvas.dispatchEvent(new CustomEvent('tracks-updated', {
+                detail: { tracks: this.tracks }
+            }));
         }
 
         // Reset Drag State

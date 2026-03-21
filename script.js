@@ -3,6 +3,7 @@ import { AudioProcessor } from './AudioProcessor.js';
 import { AudioRenderer } from './AudioRenderer.js';
 import { AudioPlaybackEngine } from './AudioPlaybackEngine.js';
 import { PeerConnection } from './PeerConnection.js';
+import { RecordingEngine } from './RecordingEngine.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const uploadButton = document.getElementById('upload-btn');
@@ -20,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const renderer = new AudioRenderer(canvas);
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const playbackEngine = new AudioPlaybackEngine(audioCtx, db);
+    const recordingEngine = new RecordingEngine(audioCtx, db, processor, renderer);
 
     // 1. Open Database
     try {
@@ -49,17 +51,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initAudioDevices() {
         try {
             // Request permissions first to get device labels, with specific constraints
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: false,
-                    autoGainControl: false,
-                    noiseSuppression: false
-                }
-            });
-
-            // We don't need to keep the stream active just for enumeration, but we might want it later.
-            // For now, let's stop the tracks so we don't leave the mic on unnecessarily.
-            stream.getTracks().forEach(track => track.stop());
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        autoGainControl: false,
+                        noiseSuppression: false
+                    }
+                });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (err) {
+                console.warn('Microphone permission not granted or available:', err);
+            }
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             
@@ -67,12 +70,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             audioInputBtn.innerHTML = '<option value="">Audio Input</option>';
             audioOutputBtn.innerHTML = '<option value="">Audio Output</option>';
 
+            let hasInput = false;
             devices.forEach(device => {
                 if (device.kind === 'audioinput') {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = device.label || `Microphone ${audioInputBtn.length}`;
                     audioInputBtn.appendChild(option);
+                    hasInput = true;
                 } else if (device.kind === 'audiooutput') {
                     const option = document.createElement('option');
                     option.value = device.deviceId;
@@ -80,6 +85,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     audioOutputBtn.appendChild(option);
                 }
             });
+
+            // Auto-select the first available input
+            if (hasInput && audioInputBtn.selectedIndex === 0) {
+                audioInputBtn.selectedIndex = 1;
+            }
+
+            // If an input is selected, initialize the recording engine with it
+            if (audioInputBtn.value) {
+                recordingEngine.setInputDevice(audioInputBtn.value);
+            }
         } catch (err) {
             console.error('Error accessing media devices:', err);
         }
@@ -90,6 +105,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listen for device changes (e.g., plugging in a USB mic)
     navigator.mediaDevices.addEventListener('devicechange', initAudioDevices);
+
+    // Handle manual input device selection
+    audioInputBtn.addEventListener('change', (e) => {
+        recordingEngine.setInputDevice(e.target.value);
+    });
 
     document.addEventListener('peer-id-ready', (e) => {
         const { id, isHost, targetId } = e.detail;
@@ -121,21 +141,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     /**
      * --- Playback Logic ---
      */
-    canvas.addEventListener('playback-start', (e) => {
-        if (playbackEngine.isPlaying) {
+    canvas.addEventListener('playback-start', async (e) => {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        if (playbackEngine.isPlaying || recordingEngine.isRecording) {
+            console.log('Stopping playback and recording...');
             playbackEngine.stop();
+            await recordingEngine.stopRecording();
         } else {
+            console.log('Starting playback and recording...');
             const { tracks, startTime, duration } = e.detail;
-            playbackEngine.play(tracks, startTime, duration);
+            const masterStartTime = await playbackEngine.play(tracks, startTime, duration);
+            recordingEngine.startRecording(startTime, masterStartTime);
         }
     });
 
-    canvas.addEventListener('playback-solo', (e) => {
-        if (playbackEngine.isPlaying) {
+    canvas.addEventListener('playback-solo', async (e) => {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        if (playbackEngine.isPlaying || recordingEngine.isRecording) {
             playbackEngine.stop();
+            await recordingEngine.stopRecording();
         } else {
             const { track, startTime } = e.detail;
-            if (track) playbackEngine.play([track], startTime);
+            if (track) await playbackEngine.play([track], startTime);
+        }
+    });
+
+    canvas.addEventListener('tracks-updated', async (e) => {
+        const { tracks } = e.detail;
+        try {
+            for (const track of tracks) {
+                await db.saveMetadata(track);
+            }
+            console.log('Saved updated track positions to database.');
+        } catch (err) {
+            console.error('Failed to save track positions:', err);
         }
     });
 
@@ -182,7 +225,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // 4. Process Audio (Decode & Generate Peaks)
                 // We pass the File object; AudioProcessor handles decoding.
-                const { peaks } = await processor.process(file, audioCtx);
+                const { peaks, decodedAudio } = await processor.process(file, audioCtx);
+
+                // 4.5 Save decoded audio to bypass decoding on playback
+                await db.saveDecodedAudio(file.name, decodedAudio);
 
                 // 5. Create Metadata Object
                 const trackIndex = renderer.tracks.length;

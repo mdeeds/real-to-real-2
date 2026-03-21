@@ -41,7 +41,45 @@ export class AudioProcessor {
             '100': this._generatePeaks(monoData, sampleRate, 0.100)
         };
 
-        return { audioBuffer, peaks };
+        // 4. Extract raw channel data for storage
+        const channelData = [];
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+            channelData.push(audioBuffer.getChannelData(i));
+        }
+
+        const decodedAudio = {
+            sampleRate: audioBuffer.sampleRate,
+            length: audioBuffer.length,
+            numberOfChannels: audioBuffer.numberOfChannels,
+            channels: channelData
+        };
+
+        return { audioBuffer, peaks, decodedAudio };
+    }
+
+    /**
+     * Processes pre-decoded raw channel data to generate peaks.
+     * @param {Object} decodedAudio - Object containing channels, sampleRate, length, numberOfChannels
+     * @returns {Object} Object containing the generated peaks
+     */
+    processDecoded(decodedAudio) {
+        // Create a temporary AudioBuffer-like object for _getMonoData
+        const mockBuffer = {
+            numberOfChannels: decodedAudio.numberOfChannels,
+            length: decodedAudio.length,
+            getChannelData: (i) => decodedAudio.channels[i]
+        };
+        
+        const monoData = this._getMonoData(mockBuffer);
+        const sampleRate = decodedAudio.sampleRate;
+
+        const peaks = {
+            '1': this._generatePeaks(monoData, sampleRate, 0.001),
+            '10': this._generatePeaks(monoData, sampleRate, 0.010),
+            '100': this._generatePeaks(monoData, sampleRate, 0.100)
+        };
+
+        return { peaks, decodedAudio };
     }
 
     /**

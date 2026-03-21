@@ -28,7 +28,7 @@ export class AudioMetadata {
 export class AudioDatabase {
     constructor() {
         this.dbName = 'real-to-real-db';
-        this.dbVersion = 1;
+        this.dbVersion = 2;
         this.db = null;
     }
 
@@ -62,6 +62,12 @@ export class AudioDatabase {
                 if (!db.objectStoreNames.contains('audio_buffers')) {
                     db.createObjectStore('audio_buffers');
                 }
+
+                // Store 3: decoded_audio
+                // Contains raw Float32Array channel data to bypass decoding on playback.
+                if (!db.objectStoreNames.contains('decoded_audio')) {
+                    db.createObjectStore('decoded_audio');
+                }
             };
 
             request.onsuccess = (event) => {
@@ -89,6 +95,14 @@ export class AudioDatabase {
 
     async saveAudioBuffer(filename, buffer) {
         return this._request('audio_buffers', 'readwrite', store => store.put(buffer, filename));
+    }
+
+    async getDecodedAudio(filename) {
+        return this._request('decoded_audio', 'readonly', store => store.get(filename));
+    }
+
+    async saveDecodedAudio(filename, decodedData) {
+        return this._request('decoded_audio', 'readwrite', store => store.put(decodedData, filename));
     }
 
     /**

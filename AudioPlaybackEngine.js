@@ -42,7 +42,11 @@ export class AudioPlaybackEngine {
         // 1. Stop existing playback
         this.stop();
 
-        if (!tracks || tracks.length === 0) return;
+        if (!tracks || tracks.length === 0) {
+            const now = this.audioCtx.currentTime;
+            const startDelay = 0.05; // 50ms lookahead
+            return now + startDelay;
+        }
 
         // 2. Fetch and Decode Buffers (Parallel)
         // Identify unique files needed for this playback
@@ -109,19 +113,40 @@ export class AudioPlaybackEngine {
                 if (idx > -1) this.activeSources.splice(idx, 1);
             };
         });
+
+        return masterStartTime;
     }
 
     /**
-     * Helper to fetch raw buffer from IDB and decode it if not cached.
+     * Helper to fetch decoded audio from IDB and reconstruct AudioBuffer if not cached.
      */
     async _ensureBufferLoaded(filename) {
         if (this.bufferCache.has(filename)) return;
 
         try {
+            // First try to get the pre-decoded audio
+            const decodedAudio = await this.database.getDecodedAudio(filename);
+            
+            if (decodedAudio) {
+                // Reconstruct AudioBuffer from raw Float32Arrays
+                const audioBuffer = this.audioCtx.createBuffer(
+                    decodedAudio.numberOfChannels,
+                    decodedAudio.length,
+                    decodedAudio.sampleRate
+                );
+                
+                for (let i = 0; i < decodedAudio.numberOfChannels; i++) {
+                    audioBuffer.copyToChannel(decodedAudio.channels[i], i);
+                }
+                
+                this.bufferCache.set(filename, audioBuffer);
+                return;
+            }
+
+            // Fallback to legacy audio_buffers if decoded_audio is missing
             const arrayBuffer = await this.database.getAudioBuffer(filename);
             if (arrayBuffer) {
-                // Decode the raw file data
-                // We slice(0) to ensure we don't detach the buffer if IDB behavior varies
+                console.warn(`[AudioPlaybackEngine] Falling back to decodeAudioData for ${filename}`);
                 const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer.slice(0));
                 this.bufferCache.set(filename, audioBuffer);
             }
