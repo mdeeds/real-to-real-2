@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const peerStatus = document.getElementById('peer-status');
     const canvas = document.getElementById('daw-canvas');
     const timeDiffDisplay = document.getElementById('time-diff-display');
+    const undoBtn = document.getElementById('undo-btn');
+
+    let lastDeletedTrack = null;
 
     // Initialize Core Components
     const db = new AudioDatabase();
@@ -194,15 +197,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { track } = e.detail;
         try {
             await db.deleteMetadata(track.filename);
-            // Optionally, we could also delete the audio buffer and decoded audio,
-            // but keeping them might be useful if the user re-imports the same file.
-            // await db.deleteAudioBuffer(track.filename);
-            // await db.deleteDecodedAudio(track.filename);
+            lastDeletedTrack = track;
+            if (undoBtn) undoBtn.style.display = 'inline-block';
             console.log(`Deleted track ${track.filename} from database.`);
         } catch (err) {
             console.error('Failed to delete track:', err);
         }
     });
+
+    if (undoBtn) {
+        undoBtn.addEventListener('click', async () => {
+            if (lastDeletedTrack) {
+                try {
+                    await db.saveMetadata(lastDeletedTrack);
+                    renderer.addTrack(lastDeletedTrack);
+                    console.log(`Restored track ${lastDeletedTrack.filename}`);
+                    lastDeletedTrack = null;
+                    undoBtn.style.display = 'none';
+                } catch (err) {
+                    console.error('Failed to restore track:', err);
+                }
+            }
+        });
+    }
 
     canvas.addEventListener('time-diff-updated', (e) => {
         if (timeDiffDisplay) {
