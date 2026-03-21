@@ -5,6 +5,7 @@ import { AudioPlaybackEngine } from './AudioPlaybackEngine.js';
 import { PeerConnection } from './PeerConnection.js';
 import { RecordingEngine } from './RecordingEngine.js';
 import { VUMeter } from './VUMeter.js';
+import { Metronome } from './Metronome.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const uploadButton = document.getElementById('upload-btn');
@@ -17,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canvas = document.getElementById('daw-canvas');
     const timeDiffDisplay = document.getElementById('time-diff-display');
     const undoBtn = document.getElementById('undo-btn');
+    const metronomeToggle = document.getElementById('metronome-toggle');
+    const bpmInput = document.getElementById('bpm-input');
 
     let lastDeletedTrack = null;
 
@@ -27,6 +30,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const playbackEngine = new AudioPlaybackEngine(audioCtx, db);
     const recordingEngine = new RecordingEngine(audioCtx, db, processor, renderer);
+    const metronome = new Metronome(audioCtx);
+    metronome.connect(playbackEngine.masterGain);
+
+    // Metronome UI Listeners
+    if (metronomeToggle) {
+        metronomeToggle.addEventListener('change', (e) => {
+            metronome.setEnabled(e.target.checked);
+        });
+    }
+    if (bpmInput) {
+        bpmInput.addEventListener('change', (e) => {
+            const bpm = parseInt(e.target.value, 10);
+            if (!isNaN(bpm) && bpm > 0) {
+                metronome.setBpm(bpm);
+            }
+        });
+    }
 
     // Initialize VU Meters
     const inputVUMeter = new VUMeter('input-vu-meter', null);
@@ -159,12 +179,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (playbackEngine.isPlaying || recordingEngine.isRecording) {
             console.log('Stopping playback and recording...');
             playbackEngine.stop();
+            metronome.stop();
             await recordingEngine.stopRecording();
         } else {
             console.log('Starting playback and recording...');
             const { tracks, startTime, duration } = e.detail;
             const masterStartTime = await playbackEngine.play(tracks, startTime, duration);
             recordingEngine.startRecording(startTime, masterStartTime);
+            metronome.start(startTime, masterStartTime);
         }
     });
 
@@ -174,10 +196,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (playbackEngine.isPlaying || recordingEngine.isRecording) {
             playbackEngine.stop();
+            metronome.stop();
             await recordingEngine.stopRecording();
         } else {
             const { track, startTime } = e.detail;
-            if (track) await playbackEngine.play([track], startTime);
+            if (track) {
+                const masterStartTime = await playbackEngine.play([track], startTime);
+                metronome.start(startTime, masterStartTime);
+            }
         }
     });
 

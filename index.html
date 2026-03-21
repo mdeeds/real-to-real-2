@@ -25,6 +25,12 @@
 
         <!-- Action buttons -->
         <div class="action-container">
+            <div style="display: flex; align-items: center; gap: 5px; margin-right: 10px;">
+                <label for="metronome-toggle" style="color: #aaa; font-size: 12px; cursor: pointer;">Metronome</label>
+                <input type="checkbox" id="metronome-toggle" style="cursor: pointer;" />
+                <input type="number" id="bpm-input" value="120" min="40" max="300" style="width: 50px; background: #333; color: white; border: 1px solid #555; border-radius: 2px; padding: 2px 5px;" />
+                <span style="color: #aaa; font-size: 12px;">BPM</span>
+            </div>
             <button id="undo-btn" class="action-btn" style="display: none; background-color: #ff9800; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Undo Delete</button>
             <div style="display: flex; align-items: center; gap: 5px;">
                 <canvas id="input-vu-meter" width="10" height="20" style="background: #333; border-radius: 2px;"></canvas>
