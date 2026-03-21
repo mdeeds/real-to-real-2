@@ -189,6 +189,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    canvas.addEventListener('track-deleted', async (e) => {
+        const { track } = e.detail;
+        try {
+            await db.deleteMetadata(track.filename);
+            // Optionally, we could also delete the audio buffer and decoded audio,
+            // but keeping them might be useful if the user re-imports the same file.
+            // await db.deleteAudioBuffer(track.filename);
+            // await db.deleteDecodedAudio(track.filename);
+            console.log(`Deleted track ${track.filename} from database.`);
+        } catch (err) {
+            console.error('Failed to delete track:', err);
+        }
+    });
+
     /**
      * When a directory is selected, iterate through its files, load them into DB,
      * generate peaks, and render them.

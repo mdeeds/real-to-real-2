@@ -89,6 +89,10 @@ export class AudioDatabase {
         return this._request('project_metadata', 'readwrite', store => store.put(metadata));
     }
 
+    async deleteMetadata(filename) {
+        return this._request('project_metadata', 'readwrite', store => store.delete(filename));
+    }
+
     async getAudioBuffer(filename) {
         return this._request('audio_buffers', 'readonly', store => store.get(filename));
     }

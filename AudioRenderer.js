@@ -334,8 +334,14 @@ export class AudioRenderer {
 
         switch (event.key) {
             case 'Delete':
+            case 'Backspace':
                 if (this.hoveredTrackIndex !== -1) {
+                    const trackToDelete = this.tracks[this.hoveredTrackIndex];
                     this.removeTrack(this.hoveredTrackIndex);
+                    // Dispatch event so the app can delete it from the database
+                    this.canvas.dispatchEvent(new CustomEvent('track-deleted', {
+                        detail: { track: trackToDelete }
+                    }));
                 }
                 break;
             case ' ':
