@@ -40,10 +40,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     if (bpmInput) {
+        // Load saved BPM
+        const savedBpm = localStorage.getItem('metronome_bpm');
+        if (savedBpm) {
+            const parsedBpm = parseInt(savedBpm, 10);
+            if (!isNaN(parsedBpm) && parsedBpm > 0) {
+                bpmInput.value = parsedBpm;
+                metronome.setBpm(parsedBpm);
+            }
+        }
+
         bpmInput.addEventListener('change', (e) => {
             const bpm = parseInt(e.target.value, 10);
             if (!isNaN(bpm) && bpm > 0) {
                 metronome.setBpm(bpm);
+                localStorage.setItem('metronome_bpm', bpm.toString());
             }
         });
     }
