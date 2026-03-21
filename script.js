@@ -4,6 +4,7 @@ import { AudioRenderer } from './AudioRenderer.js';
 import { AudioPlaybackEngine } from './AudioPlaybackEngine.js';
 import { PeerConnection } from './PeerConnection.js';
 import { RecordingEngine } from './RecordingEngine.js';
+import { VUMeter } from './VUMeter.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const uploadButton = document.getElementById('upload-btn');
@@ -22,6 +23,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const playbackEngine = new AudioPlaybackEngine(audioCtx, db);
     const recordingEngine = new RecordingEngine(audioCtx, db, processor, renderer);
+
+    // Initialize VU Meters
+    const inputVUMeter = new VUMeter('input-vu-meter', null);
+    const outputVUMeter = new VUMeter('output-vu-meter', playbackEngine.analyserNode);
 
     // 1. Open Database
     try {
@@ -93,7 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // If an input is selected, initialize the recording engine with it
             if (audioInputBtn.value) {
-                recordingEngine.setInputDevice(audioInputBtn.value);
+                await recordingEngine.setInputDevice(audioInputBtn.value);
+                inputVUMeter.setAnalyser(recordingEngine.analyserNode);
             }
         } catch (err) {
             console.error('Error accessing media devices:', err);
@@ -107,8 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     navigator.mediaDevices.addEventListener('devicechange', initAudioDevices);
 
     // Handle manual input device selection
-    audioInputBtn.addEventListener('change', (e) => {
-        recordingEngine.setInputDevice(e.target.value);
+    audioInputBtn.addEventListener('change', async (e) => {
+        await recordingEngine.setInputDevice(e.target.value);
+        inputVUMeter.setAnalyser(recordingEngine.analyserNode);
     });
 
     document.addEventListener('peer-id-ready', (e) => {

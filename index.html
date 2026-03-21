@@ -20,12 +20,18 @@
 
         <!-- Action buttons -->
         <div class="action-container">
-            <select id="audio-input-btn" class="action-btn" style="width: auto; padding: 0 10px;">
-                <option value="">Audio Input</option>
-            </select>
-            <select id="audio-output-btn" class="action-btn" style="width: auto; padding: 0 10px;">
-                <option value="">Audio Output</option>
-            </select>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <canvas id="input-vu-meter" width="10" height="20" style="background: #333; border-radius: 2px;"></canvas>
+                <select id="audio-input-btn" class="action-btn" style="width: auto; padding: 0 10px;">
+                    <option value="">Audio Input</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <canvas id="output-vu-meter" width="10" height="20" style="background: #333; border-radius: 2px;"></canvas>
+                <select id="audio-output-btn" class="action-btn" style="width: auto; padding: 0 10px;">
+                    <option value="">Audio Output</option>
+                </select>
+            </div>
             <button id="upload-btn" class="action-btn">Upload</button>
             <button id="download-btn" class="action-btn">Download</button>
         </div>

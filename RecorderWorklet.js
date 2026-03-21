@@ -10,7 +10,11 @@ class RecorderWorklet extends AudioWorkletProcessor {
         this.framesCollected = 0;
         this.batchStartFrame = 0;
         this.batchStartTime = 0;
+        console.log('RecorderWorklet constructed.');
     }
+
+
+    lastLogTimeS = 0;
 
     /**
      * The main processing function. It's called for each block of 128 audio frames.
@@ -18,6 +22,11 @@ class RecorderWorklet extends AudioWorkletProcessor {
      * @returns {boolean} - `true` to keep the processor alive.
      */
     process(inputs) {
+        const nowS = currentTime;
+        if (nowS > this.lastLogTimeS + 10) {
+            this.lastLogTimeS = nowS;
+            console.log("Worker input data: ", inputs);
+        }
         // We assume the first input is the one we want to record.
         const input = inputs[0];
 

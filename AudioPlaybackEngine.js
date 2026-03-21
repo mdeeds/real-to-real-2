@@ -8,6 +8,12 @@ export class AudioPlaybackEngine {
         this.database = database;
         this.activeSources = [];
         this.bufferCache = new Map();
+
+        this.masterGain = this.audioCtx.createGain();
+        this.analyserNode = this.audioCtx.createAnalyser();
+        this.analyserNode.fftSize = 256;
+        this.masterGain.connect(this.analyserNode);
+        this.analyserNode.connect(this.audioCtx.destination);
     }
 
     /**
@@ -101,7 +107,7 @@ export class AudioPlaybackEngine {
             // Create and Schedule Source
             const source = this.audioCtx.createBufferSource();
             source.buffer = buffer;
-            source.connect(this.audioCtx.destination);
+            source.connect(this.masterGain);
 
             // start(when, offset, duration)
             source.start(when, offset, playDuration);

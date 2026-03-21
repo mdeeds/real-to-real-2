@@ -22,6 +22,7 @@ export class RecordingEngine {
         
         this.timelineStartTime = 0;
         this.masterStartTime = 0;
+        this.lastLogTime = 0;
         
         this.workletPromise = this.initWorklet();
     }
@@ -61,11 +62,15 @@ export class RecordingEngine {
             });
 
             this.mediaStreamSource = this.audioCtx.createMediaStreamSource(this.stream);
+            this.analyserNode = this.audioCtx.createAnalyser();
+            this.analyserNode.fftSize = 256;
+            this.mediaStreamSource.connect(this.analyserNode);
+
             this.workletNode = new AudioWorkletNode(this.audioCtx, 'record-processor');
             
             this.workletNode.port.onmessage = (e) => this.handleMessage(e);
             
-            this.mediaStreamSource.connect(this.workletNode);
+            this.analyserNode.connect(this.workletNode);
             
             // Connect to destination via a silent gain node to keep the worklet running
             const silentGain = this.audioCtx.createGain();
@@ -81,6 +86,12 @@ export class RecordingEngine {
     }
 
     handleMessage(event) {
+        const now = performance.now();
+        if (now - this.lastLogTime >= 10000) {
+            console.log('[RecordingEngine] Raw packet from worklet:', event.data);
+            this.lastLogTime = now;
+        }
+
         if (event.data.type === 'samples') {
             const { channels, startFrame, startTimeS } = event.data;
             
