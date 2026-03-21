@@ -139,6 +139,15 @@ export class AudioRenderer {
      * Clears and redraws the entire canvas.
      */
     render() {
+        const timeAtMouse = this.viewOffset + (this.mouseX / this.pixelsPerSecond);
+        const diff = timeAtMouse - this.cursorTime;
+        if (this.lastDiff !== diff) {
+            this.lastDiff = diff;
+            this.canvas.dispatchEvent(new CustomEvent('time-diff-updated', {
+                detail: { diff }
+            }));
+        }
+
         // Collect State Snapshot
         const state = {
             width: this.canvas.width,

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const peerLink = document.getElementById('peer-link');
     const peerStatus = document.getElementById('peer-status');
     const canvas = document.getElementById('daw-canvas');
+    const timeDiffDisplay = document.getElementById('time-diff-display');
 
     // Initialize Core Components
     const db = new AudioDatabase();
@@ -200,6 +201,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log(`Deleted track ${track.filename} from database.`);
         } catch (err) {
             console.error('Failed to delete track:', err);
+        }
+    });
+
+    canvas.addEventListener('time-diff-updated', (e) => {
+        if (timeDiffDisplay) {
+            const diff = e.detail.diff;
+            const sign = diff > 0 ? '+' : (diff < 0 ? '-' : '');
+            timeDiffDisplay.textContent = sign + Math.abs(diff).toFixed(3);
         }
     });
 
