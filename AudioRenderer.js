@@ -356,7 +356,13 @@ export class AudioRenderer {
             case ' ':
                 event.preventDefault(); // Prevent scrolling
                 // Calculate duration of the visible screen
-                const visibleDuration = this.canvas.width / this.pixelsPerSecond;
+                let visibleDuration = this.canvas.width / this.pixelsPerSecond;
+                
+                // If zoom is 10ms or 100ms per pixel, play indefinitely
+                if (this.currentZoomIndex === 1 || this.currentZoomIndex === 2) {
+                    visibleDuration = null;
+                }
+
                 this.canvas.dispatchEvent(new CustomEvent('playback-start', {
                     detail: {
                         startTime: this.viewOffset,
