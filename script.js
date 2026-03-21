@@ -7,6 +7,8 @@ import { PeerConnection } from './PeerConnection.js';
 document.addEventListener('DOMContentLoaded', async () => {
     const uploadButton = document.getElementById('upload-btn');
     const downloadButton = document.getElementById('download-btn');
+    const audioInputBtn = document.getElementById('audio-input-btn');
+    const audioOutputBtn = document.getElementById('audio-output-btn');
     const directoryPicker = document.getElementById('directory-picker');
     const peerLink = document.getElementById('peer-link');
     const peerStatus = document.getElementById('peer-status');
@@ -42,6 +44,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Initialize Peer Connection
     const peerConnection = new PeerConnection();
     peerConnection.init();
+
+    // 4. Initialize Audio Devices
+    async function initAudioDevices() {
+        try {
+            // Request permissions first to get device labels, with specific constraints
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,
+                    autoGainControl: false,
+                    noiseSuppression: false
+                }
+            });
+
+            // We don't need to keep the stream active just for enumeration, but we might want it later.
+            // For now, let's stop the tracks so we don't leave the mic on unnecessarily.
+            stream.getTracks().forEach(track => track.stop());
+
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            
+            // Clear existing options except the first placeholder
+            audioInputBtn.innerHTML = '<option value="">Audio Input</option>';
+            audioOutputBtn.innerHTML = '<option value="">Audio Output</option>';
+
+            devices.forEach(device => {
+                if (device.kind === 'audioinput') {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Microphone ${audioInputBtn.length}`;
+                    audioInputBtn.appendChild(option);
+                } else if (device.kind === 'audiooutput') {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Speaker ${audioOutputBtn.length}`;
+                    audioOutputBtn.appendChild(option);
+                }
+            });
+        } catch (err) {
+            console.error('Error accessing media devices:', err);
+        }
+    }
+
+    // Call it once to populate
+    initAudioDevices();
+
+    // Listen for device changes (e.g., plugging in a USB mic)
+    navigator.mediaDevices.addEventListener('devicechange', initAudioDevices);
 
     document.addEventListener('peer-id-ready', (e) => {
         const { id, isHost, targetId } = e.detail;

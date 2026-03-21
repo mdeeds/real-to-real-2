@@ -1,5 +1,3 @@
-import Peer from 'peerjs';
-
 export class PeerConnection {
     constructor() {
         this.peer = null;

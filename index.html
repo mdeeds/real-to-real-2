@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-to-Real</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 
 <body>
@@ -19,6 +20,12 @@
 
         <!-- Action buttons -->
         <div class="action-container">
+            <select id="audio-input-btn" class="action-btn" style="width: auto; padding: 0 10px;">
+                <option value="">Audio Input</option>
+            </select>
+            <select id="audio-output-btn" class="action-btn" style="width: auto; padding: 0 10px;">
+                <option value="">Audio Output</option>
+            </select>
             <button id="upload-btn" class="action-btn">Upload</button>
             <button id="download-btn" class="action-btn">Download</button>
         </div>
