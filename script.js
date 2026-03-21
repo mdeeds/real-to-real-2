@@ -207,6 +207,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    canvas.addEventListener('track-spatial-update', async (e) => {
+        const { track } = e.detail;
+        playbackEngine.updateTrackNodes(track.filename, track.pan, track.hpFreq, track.lpFreq);
+        // We don't save to DB on every mouse move to avoid spamming, 
+        // but we save on 'tracks-updated' which fires on mouseup.
+    });
+
     canvas.addEventListener('tracks-updated', async (e) => {
         const { tracks } = e.detail;
         try {
@@ -223,6 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { track } = e.detail;
         try {
             await db.deleteMetadata(track.filename);
+            playbackEngine.deleteTrackNodes(track.filename);
             lastDeletedTrack = track;
             if (undoBtn) undoBtn.style.display = 'inline-block';
             console.log(`Deleted track ${track.filename} from database.`);

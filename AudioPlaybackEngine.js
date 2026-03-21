@@ -8,6 +8,7 @@ export class AudioPlaybackEngine {
         this.database = database;
         this.activeSources = [];
         this.bufferCache = new Map();
+        this.trackNodes = new Map(); // filename -> { panner, highpass, lowpass, gain }
 
         this.masterGain = this.audioCtx.createGain();
         this.analyserNode = this.audioCtx.createAnalyser();
@@ -36,6 +37,27 @@ export class AudioPlaybackEngine {
             }
         });
         this.activeSources = [];
+    }
+
+    updateTrackNodes(filename, pan, hpFreq, lpFreq) {
+        const nodes = this.trackNodes.get(filename);
+        if (nodes) {
+            const now = this.audioCtx.currentTime;
+            nodes.panner.pan.setTargetAtTime(pan, now, 0.05);
+            nodes.highpass.frequency.setTargetAtTime(hpFreq, now, 0.05);
+            nodes.lowpass.frequency.setTargetAtTime(lpFreq, now, 0.05);
+        }
+    }
+
+    deleteTrackNodes(filename) {
+        const nodes = this.trackNodes.get(filename);
+        if (nodes) {
+            nodes.gain.disconnect();
+            nodes.highpass.disconnect();
+            nodes.lowpass.disconnect();
+            nodes.panner.disconnect();
+            this.trackNodes.delete(filename);
+        }
     }
 
     /**
@@ -107,7 +129,38 @@ export class AudioPlaybackEngine {
             // Create and Schedule Source
             const source = this.audioCtx.createBufferSource();
             source.buffer = buffer;
-            source.connect(this.masterGain);
+
+            // Create or get nodes for this track
+            let nodes = this.trackNodes.get(track.filename);
+            if (!nodes) {
+                const panner = this.audioCtx.createStereoPanner();
+                const highpass = this.audioCtx.createBiquadFilter();
+                highpass.type = 'highpass';
+                highpass.frequency.value = 20;
+
+                const lowpass = this.audioCtx.createBiquadFilter();
+                lowpass.type = 'lowpass';
+                lowpass.frequency.value = 20000;
+
+                const gain = this.audioCtx.createGain();
+                gain.gain.value = 1.0;
+
+                // source -> gain -> highpass -> lowpass -> panner -> masterGain
+                gain.connect(highpass);
+                highpass.connect(lowpass);
+                lowpass.connect(panner);
+                panner.connect(this.masterGain);
+
+                nodes = { gain, highpass, lowpass, panner };
+                this.trackNodes.set(track.filename, nodes);
+            }
+
+            // Apply current track settings if they exist
+            nodes.panner.pan.value = track.pan !== undefined ? track.pan : 0;
+            nodes.highpass.frequency.value = track.hpFreq !== undefined ? track.hpFreq : 20;
+            nodes.lowpass.frequency.value = track.lpFreq !== undefined ? track.lpFreq : 20000;
+
+            source.connect(nodes.gain);
 
             // start(when, offset, duration)
             source.start(when, offset, playDuration);

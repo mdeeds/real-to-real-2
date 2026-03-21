@@ -23,6 +23,9 @@ export class AudioRenderer {
         this.lastFrameTime = 0;
         this.mouseX = 0;
         this.cursorTime = 0; // Absolute time in seconds for the hairline cursor
+        this.viewMode = 'timeline'; // 'timeline' or 'spatial'
+        this.hoveredSpatialTrack = null;
+        this.draggedSpatialTrack = null;
 
         // Drag State
         this.dragState = {
@@ -119,10 +122,15 @@ export class AudioRenderer {
 
         // Resize canvas height to accommodate all tracks
         // Ensure it's at least the size of the container or 0 if empty
-        const totalHeight = Math.max(
-            this.tracks.length * this.trackHeight,
-            this.canvas.parentElement ? this.canvas.parentElement.clientHeight : 0
-        );
+        let totalHeight;
+        if (this.viewMode === 'spatial') {
+            totalHeight = this.canvas.parentElement ? this.canvas.parentElement.clientHeight : window.innerHeight - 50;
+        } else {
+            totalHeight = Math.max(
+                this.tracks.length * this.trackHeight,
+                this.canvas.parentElement ? this.canvas.parentElement.clientHeight : 0
+            );
+        }
 
         // Only resize if necessary to avoid flickering or state loss
         if (this.canvas.height !== totalHeight) {
@@ -132,6 +140,109 @@ export class AudioRenderer {
         // Sync width with parent container
         if (this.canvas.parentElement && this.canvas.width !== this.canvas.parentElement.clientWidth) {
             this.canvas.width = this.canvas.parentElement.clientWidth;
+        }
+    }
+
+    _getSpatialCoordinates(track) {
+        const pan = track.pan !== undefined ? track.pan : 0;
+        const hpFreq = track.hpFreq !== undefined ? track.hpFreq : 20;
+        const lpFreq = track.lpFreq !== undefined ? track.lpFreq : 20000;
+
+        const x = (pan + 1) / 2 * this.canvas.width;
+        let y = this.canvas.height / 2;
+        const halfHeight = this.canvas.height / 2;
+
+        if (hpFreq > 20) {
+            // Top half: HPF goes from 20Hz (center) to 20000Hz (top)
+            const ratio = Math.log(hpFreq / 20) / Math.log(1000); // 0 to 1
+            y = halfHeight - (ratio * halfHeight);
+        } else if (lpFreq < 20000) {
+            // Bottom half: LPF goes from 20000Hz (center) to 20Hz (bottom)
+            const ratio = Math.log(20000 / lpFreq) / Math.log(1000); // 0 to 1
+            y = halfHeight + (ratio * halfHeight);
+        }
+
+        return { x, y };
+    }
+
+    _renderSpatial() {
+        this.ctx.fillStyle = '#111'; // Dark background for spatial mode
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const halfHeight = this.canvas.height / 2;
+
+        // Draw axes
+        this.ctx.strokeStyle = '#333';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.canvas.width / 2, 0);
+        this.ctx.lineTo(this.canvas.width / 2, this.canvas.height);
+        this.ctx.moveTo(0, halfHeight);
+        this.ctx.lineTo(this.canvas.width, halfHeight);
+        this.ctx.stroke();
+
+        // Draw guidelines (200Hz and 2000Hz)
+        this.ctx.strokeStyle = '#222';
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        
+        // Top half (HPF)
+        const yTop200 = halfHeight - (1/3 * halfHeight);
+        const yTop2000 = halfHeight - (2/3 * halfHeight);
+        this.ctx.moveTo(0, yTop200); this.ctx.lineTo(this.canvas.width, yTop200);
+        this.ctx.moveTo(0, yTop2000); this.ctx.lineTo(this.canvas.width, yTop2000);
+
+        // Bottom half (LPF)
+        const yBot2000 = halfHeight + (1/3 * halfHeight);
+        const yBot200 = halfHeight + (2/3 * halfHeight);
+        this.ctx.moveTo(0, yBot2000); this.ctx.lineTo(this.canvas.width, yBot2000);
+        this.ctx.moveTo(0, yBot200); this.ctx.lineTo(this.canvas.width, yBot200);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        // Draw labels
+        this.ctx.fillStyle = '#666';
+        this.ctx.font = '12px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('HPF 20kHz', this.canvas.width / 2, 15);
+        this.ctx.fillText('Wide Open', this.canvas.width / 2, halfHeight - 5);
+        this.ctx.fillText('LPF 20Hz', this.canvas.width / 2, this.canvas.height - 5);
+        
+        // Guideline labels
+        this.ctx.font = '10px sans-serif';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('2000 Hz', 5, yTop2000 - 2);
+        this.ctx.fillText('200 Hz', 5, yTop200 - 2);
+        this.ctx.fillText('2000 Hz', 5, yBot2000 - 2);
+        this.ctx.fillText('200 Hz', 5, yBot200 - 2);
+
+        this.ctx.font = '12px sans-serif';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('Pan L', 5, halfHeight - 5);
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('Pan R', this.canvas.width - 5, halfHeight - 5);
+
+        // Draw tracks
+        for (const track of this.tracks) {
+            const { x, y } = this._getSpatialCoordinates(track);
+            const isHovered = track === this.hoveredSpatialTrack;
+            const isDragged = track === this.draggedSpatialTrack;
+
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, isHovered || isDragged ? 25 : 20, 0, Math.PI * 2);
+            this.ctx.fillStyle = isDragged ? '#ff9800' : (isHovered ? '#4caf50' : '#2196f3');
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = '#fff';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.font = '10px sans-serif';
+            // Shorten filename
+            const name = track.filename.length > 10 ? track.filename.substring(0, 8) + '...' : track.filename;
+            this.ctx.fillText(name, x, y);
         }
     }
 
@@ -146,6 +257,11 @@ export class AudioRenderer {
             this.canvas.dispatchEvent(new CustomEvent('time-diff-updated', {
                 detail: { diff }
             }));
+        }
+
+        if (this.viewMode === 'spatial') {
+            this._renderSpatial();
+            return;
         }
 
         // Collect State Snapshot
@@ -218,6 +334,49 @@ export class AudioRenderer {
         this.mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
 
+        if (this.viewMode === 'spatial') {
+            if (this.draggedSpatialTrack) {
+                // Update pan, hpFreq, lpFreq
+                const pan = Math.max(-1, Math.min(1, (this.mouseX / this.canvas.width) * 2 - 1));
+                
+                const y = Math.max(0, Math.min(this.canvas.height, mouseY));
+                const halfHeight = this.canvas.height / 2;
+                let hpFreq = 20;
+                let lpFreq = 20000;
+
+                if (y < halfHeight) {
+                    // Top half: HPF goes from 20000Hz (top) to 20Hz (center)
+                    const ratio = (halfHeight - y) / halfHeight; // 0 at center, 1 at top
+                    hpFreq = 20 * Math.pow(1000, ratio);
+                } else {
+                    // Bottom half: LPF goes from 20000Hz (center) to 20Hz (bottom)
+                    const ratio = (y - halfHeight) / halfHeight; // 0 at center, 1 at bottom
+                    lpFreq = 20000 / Math.pow(1000, ratio);
+                }
+
+                this.draggedSpatialTrack.pan = pan;
+                this.draggedSpatialTrack.hpFreq = hpFreq;
+                this.draggedSpatialTrack.lpFreq = lpFreq;
+
+                this.canvas.dispatchEvent(new CustomEvent('track-spatial-update', {
+                    detail: { track: this.draggedSpatialTrack }
+                }));
+            } else {
+                // Hover detection
+                this.hoveredSpatialTrack = null;
+                for (const track of this.tracks) {
+                    const { x, y } = this._getSpatialCoordinates(track);
+                    const dx = this.mouseX - x;
+                    const dy = mouseY - y;
+                    if (dx * dx + dy * dy <= 625) { // radius 25
+                        this.hoveredSpatialTrack = track;
+                        break; // Only hover one
+                    }
+                }
+            }
+            return;
+        }
+
         // 1. Handle Dragging
         if (this.dragState.trackIndex !== -1 && (event.buttons === 1)) {
             const dx = this.mouseX - this.dragState.startX;
@@ -282,6 +441,14 @@ export class AudioRenderer {
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
+
+        if (this.viewMode === 'spatial') {
+            if (this.hoveredSpatialTrack) {
+                this.draggedSpatialTrack = this.hoveredSpatialTrack;
+            }
+            return;
+        }
+
         const trackIndex = Math.floor(y / this.trackHeight);
 
         if (trackIndex >= 0 && trackIndex < this.tracks.length) {
@@ -311,6 +478,16 @@ export class AudioRenderer {
      * @param {MouseEvent} event 
      */
     handleMouseUp(event) {
+        if (this.viewMode === 'spatial') {
+            if (this.draggedSpatialTrack) {
+                this.canvas.dispatchEvent(new CustomEvent('tracks-updated', {
+                    detail: { tracks: [this.draggedSpatialTrack] }
+                }));
+                this.draggedSpatialTrack = null;
+            }
+            return;
+        }
+
         // If we weren't dragging, treat it as a click to move hairline
         if (!this.dragState.isDragging) {
             const rect = this.canvas.getBoundingClientRect();
@@ -340,6 +517,40 @@ export class AudioRenderer {
     handleKeyDown(event) {
         // Avoid interfering with input elements if any exist
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            this.viewMode = this.viewMode === 'timeline' ? 'spatial' : 'timeline';
+            this.updateTrackLayout(); // Resize canvas
+            return;
+        }
+
+        if (this.viewMode === 'spatial') {
+            if (event.key === 's' || event.key === 'S') {
+                if (this.hoveredSpatialTrack) {
+                    this.canvas.dispatchEvent(new CustomEvent('playback-solo', {
+                        detail: {
+                            track: this.hoveredSpatialTrack,
+                            startTime: this.viewOffset
+                        }
+                    }));
+                }
+            } else if (event.key === ' ') {
+                event.preventDefault();
+                let visibleDuration = this.canvas.width / this.pixelsPerSecond;
+                if (this.currentZoomIndex === 1 || this.currentZoomIndex === 2) {
+                    visibleDuration = null;
+                }
+                this.canvas.dispatchEvent(new CustomEvent('playback-start', {
+                    detail: {
+                        startTime: this.viewOffset,
+                        duration: visibleDuration,
+                        tracks: this.tracks
+                    }
+                }));
+            }
+            return;
+        }
 
         switch (event.key) {
             case 'Delete':
