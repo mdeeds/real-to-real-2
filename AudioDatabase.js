@@ -10,14 +10,16 @@ export class AudioMetadata {
      * @param {number} [startTime=0] - Offset in seconds where playback begins.
      * @param {number} [trackIndex=0] - Vertical order of the track.
      * @param {Object} [renderCache=null] - Object containing pre-calculated Min/Max/RMS Float32Arrays.
+     * @param {boolean} [isDownloaded=false] - Whether the file has been downloaded or uploaded already.
      */
-    constructor(filename, size, lastModified, startTime = 0, trackIndex = 0, renderCache = null) {
+    constructor(filename, size, lastModified, startTime = 0, trackIndex = 0, renderCache = null, isDownloaded = false) {
         this.filename = filename;
         this.size = size;
         this.lastModified = lastModified;
         this.startTime = startTime;
         this.trackIndex = trackIndex;
         this.renderCache = renderCache;
+        this.isDownloaded = isDownloaded;
     }
 }
 

@@ -330,7 +330,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     file.lastModified,
                     0, // Start Time
                     trackIndex,
-                    peaks
+                    peaks,
+                    true // isDownloaded: mark uploaded files as already downloaded
                 );
 
                 // 6. Save Metadata to AudioDatabase (project_metadata store)
@@ -350,8 +351,111 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     /**
-     * --- Placeholder Logic ---
-     * Adds console logs for other UI elements to confirm they are wired up.
+     * --- Download Logic ---
+     * Prompts the user for a directory and saves all audio files there.
      */
-    downloadButton.addEventListener('click', () => console.log('Download button clicked.'));
+    downloadButton.addEventListener('click', async (e) => {
+        const forceDownloadAll = e.ctrlKey || e.metaKey;
+
+        try {
+            // Check if the File System Access API is supported
+            if (!window.showDirectoryPicker) {
+                alert('Your browser does not support the File System Access API. Please use a modern browser like Chrome or Edge.');
+                return;
+            }
+
+            const tracks = await db.getAllMetadata();
+            if (tracks.length === 0) {
+                alert('No tracks to download.');
+                return;
+            }
+
+            // Ask user for a directory to save files
+            const dirHandle = await window.showDirectoryPicker({
+                mode: 'readwrite'
+            });
+
+            // Get list of existing files in the selected directory
+            const existingFiles = new Set();
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file') {
+                    existingFiles.add(entry.name);
+                }
+            }
+
+            console.log(`Checking ${tracks.length} files for download...`);
+
+            let successCount = 0;
+            let skippedCount = 0;
+
+            for (const track of tracks) {
+                try {
+                    let shouldDownload = false;
+
+                    if (forceDownloadAll) {
+                        shouldDownload = true;
+                    } else {
+                        if (existingFiles.has(track.filename)) {
+                            // File already exists in the folder. Skip downloading, but mark as downloaded in DB.
+                            shouldDownload = false;
+                            if (!track.isDownloaded) {
+                                track.isDownloaded = true;
+                                await db.saveMetadata(track);
+                            }
+                            skippedCount++;
+                        } else if (track.isDownloaded) {
+                            // Already marked as downloaded and we aren't forcing.
+                            shouldDownload = false;
+                            skippedCount++;
+                        } else {
+                            // Doesn't exist in folder, and not marked as downloaded.
+                            shouldDownload = true;
+                        }
+                    }
+
+                    if (shouldDownload) {
+                        // Get the raw audio buffer from the database
+                        const arrayBuffer = await db.getAudioBuffer(track.filename);
+                        if (!arrayBuffer) {
+                            console.warn(`Could not find audio buffer for ${track.filename}`);
+                            continue;
+                        }
+
+                        // Create a file handle in the selected directory
+                        const fileHandle = await dirHandle.getFileHandle(track.filename, { create: true });
+                        
+                        // Create a writable stream
+                        const writable = await fileHandle.createWritable();
+                        
+                        // Write the ArrayBuffer to the file
+                        await writable.write(arrayBuffer);
+                        
+                        // Close the file
+                        await writable.close();
+                        
+                        console.log(`Successfully downloaded ${track.filename}`);
+                        successCount++;
+
+                        // Mark as downloaded in DB
+                        if (!track.isDownloaded) {
+                            track.isDownloaded = true;
+                            await db.saveMetadata(track);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to process ${track.filename}:`, err);
+                }
+            }
+            
+            console.log('Download process complete.');
+            alert(`Downloaded ${successCount} files. Skipped ${skippedCount} files.`);
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                console.log('Download cancelled by user.');
+            } else {
+                console.error('Error during download:', err);
+                alert('Failed to download files. See console for details.');
+            }
+        }
+    });
 });
