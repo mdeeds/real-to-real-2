@@ -146,7 +146,16 @@ export class RecordingEngine {
         // timelineStartTime + (firstChunk.startTimeS - masterStartTime)
         
         const firstChunk = chunksToProcess[0];
-        const exactTimelineStartTime = this.timelineStartTime + (firstChunk.startTimeS - this.masterStartTime);
+        let exactTimelineStartTime = this.timelineStartTime + (firstChunk.startTimeS - this.masterStartTime);
+        
+        // Apply latency adjustment if configured
+        const savedLatency = localStorage.getItem('recording_latency_ms');
+        if (savedLatency) {
+            const latencyMs = parseFloat(savedLatency);
+            if (!isNaN(latencyMs)) {
+                exactTimelineStartTime -= (latencyMs / 1000);
+            }
+        }
         
         // Process recorded chunks into a WAV file
         const wavBlob = this.createWavBlob(chunksToProcess, this.audioCtx.sampleRate);

@@ -1,8 +1,10 @@
 # Real-to-Real
 
-Realtime reel-to-reel peer-to-peer. A radically simple, browser-based Digital Audio Workstation designed for recording, aligning multi-track WAV files, and mixing them in a spatial environment without a backend server.
+Realtime reel-to-reel peer-to-peer. A radically simple, browser-based Digital Audio Workstation designed for
+recording, aligning multi-track WAV files, and mixing them in a spatial environment without a backend server.
 
-Built entirely with vanilla JavaScript, the Web Audio API, and WebRTC (via PeerJS). No build steps, no bundlers, no installers.
+Built entirely with vanilla JavaScript, the Web Audio API, and WebRTC (via PeerJS). No build steps, no bundlers,
+no installers.
 
 ## Features & How to Use
 

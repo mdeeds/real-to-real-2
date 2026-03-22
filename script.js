@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const undoBtn = document.getElementById('undo-btn');
     const metronomeToggle = document.getElementById('metronome-toggle');
     const bpmInput = document.getElementById('bpm-input');
+    const latencyInput = document.getElementById('latency-input');
 
     let lastDeletedTrack = null;
 
@@ -34,6 +35,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const recordingEngine = new RecordingEngine(audioCtx, db, processor, renderer);
     const metronome = new Metronome(audioCtx);
     metronome.connect(playbackEngine.masterGain);
+
+    // Latency UI Listeners
+    if (latencyInput) {
+        const savedLatency = localStorage.getItem('recording_latency_ms');
+        if (savedLatency) {
+            latencyInput.value = savedLatency;
+        }
+        latencyInput.addEventListener('change', (e) => {
+            localStorage.setItem('recording_latency_ms', e.target.value);
+        });
+    }
 
     // Metronome UI Listeners
     if (metronomeToggle) {
