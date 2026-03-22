@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const recordingEngine = new RecordingEngine(audioCtx, db, processor, renderer);
     const metronome = new Metronome(audioCtx);
     metronome.connect(playbackEngine.masterGain);
+    renderer.setMetronome(metronome);
 
     // Latency UI Listeners
     if (latencyInput) {

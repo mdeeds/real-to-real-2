@@ -20,6 +20,11 @@ export class TimelineDrawer {
         ctx.fillStyle = colors.background;
         ctx.fillRect(0, 0, width, height);
 
+        // 1.5 Draw Metronome Lines
+        if (state.metronome && state.metronome.isEnabled) {
+            this._drawMetronomeLines(ctx, state);
+        }
+
         // 2. Draw each track
         tracks.forEach((track, index) => {
             this._drawTrack(ctx, track, index, state);
@@ -101,5 +106,38 @@ export class TimelineDrawer {
             ctx.fillStyle = colors.hairline;
             ctx.fillRect(x, 0, 1, height);
         }
+    }
+
+    _drawMetronomeLines(ctx, state) {
+        const { width, height, viewOffset, pixelsPerSecond, resolutionKey, metronome } = state;
+        const bpm = metronome.bpm;
+        const beatsPerBar = metronome.beatsPerBar;
+        const secondsPerBeat = 60 / bpm;
+        const secondsPerBar = secondsPerBeat * beatsPerBar;
+
+        // Determine what to draw based on zoom level
+        // zoom 1: resolutionKey '1' (1000 pps) -> draw every beat
+        // zoom 2: resolutionKey '10' (100 pps) -> draw every beat
+        // zoom 3: resolutionKey '100' (10 pps) -> draw every measure (bar)
+        const drawEveryBeat = resolutionKey === '1' || resolutionKey === '10';
+        const interval = drawEveryBeat ? secondsPerBeat : secondsPerBar;
+
+        // Find the first line to draw
+        const firstLineTime = Math.floor(viewOffset / interval) * interval;
+        const lastLineTime = viewOffset + (width / pixelsPerSecond);
+
+        ctx.strokeStyle = '#e0e0e0'; // light grey
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        for (let t = firstLineTime; t <= lastLineTime; t += interval) {
+            if (t < 0) continue; // Metronome starts at 0
+            
+            const x = (t - viewOffset) * pixelsPerSecond;
+            
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+        }
+        ctx.stroke();
     }
 }

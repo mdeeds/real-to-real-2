@@ -74,6 +74,14 @@ export class AudioRenderer {
     }
 
     /**
+     * Sets the metronome instance to be used by the renderer.
+     * @param {Metronome} metronome
+     */
+    setMetronome(metronome) {
+        this.metronome = metronome;
+    }
+
+    /**
      * Adds a track to the renderer and updates the view.
      * Assigns a track number (index) based on the order.
      * @param {Object} metadata - AudioMetadata object from AudioDatabase.
@@ -276,7 +284,8 @@ export class AudioRenderer {
             selectedTrackIndex: this.selectedTrackIndex,
             cursorTime: this.cursorTime,
             colors: this.colors,
-            trackHeight: this.trackHeight
+            trackHeight: this.trackHeight,
+            metronome: this.metronome
         };
 
         // Delegate to Drawer
