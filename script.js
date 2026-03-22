@@ -158,9 +158,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('peer-id-ready', (e) => {
         const { id, isHost, targetId } = e.detail;
         const url = new URL(window.location);
-        url.searchParams.set('id', isHost ? id : targetId);
-        peerLink.href = url.toString();
-        peerLink.textContent = url.toString();
+        const sessionId = isHost ? id : targetId;
+        url.searchParams.set('id', sessionId);
+        
+        peerLink.href = '#';
+        peerLink.textContent = sessionId;
+        
+        peerLink.onclick = (ev) => {
+            ev.preventDefault();
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                const originalText = peerLink.textContent;
+                peerLink.textContent = 'Copied!';
+                setTimeout(() => {
+                    peerLink.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy link: ', err);
+            });
+        };
+
         peerStatus.textContent = isHost ? '(Host)' : '(Connecting to Host...)';
     });
 
