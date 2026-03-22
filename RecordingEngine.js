@@ -207,6 +207,8 @@ export class RecordingEngine {
             this.renderer.addTrack(metadata);
             
             console.log(`[RecordingEngine] Recording successfully saved and added to timeline at ${exactTimelineStartTime}s`);
+            
+            document.dispatchEvent(new CustomEvent('recording-saved', { detail: { metadata } }));
         } catch (err) {
             console.error('[RecordingEngine] Error saving recording:', err);
         }

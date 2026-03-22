@@ -92,7 +92,9 @@ export class PeerConnection {
         });
 
         conn.on('data', (data) => {
-            console.log('Received data from', conn.peer, ':', data);
+            if (data && data.type !== 'FILE_CHUNK') {
+                console.log('Received data from', conn.peer, ':', data);
+            }
             document.dispatchEvent(new CustomEvent('peer-data-received', { detail: { peerId: conn.peer, data } }));
         });
 

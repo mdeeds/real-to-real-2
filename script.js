@@ -3,6 +3,7 @@ import { AudioProcessor } from './AudioProcessor.js';
 import { AudioRenderer } from './AudioRenderer.js';
 import { AudioPlaybackEngine } from './AudioPlaybackEngine.js';
 import { PeerConnection } from './PeerConnection.js';
+import { PeerSyncManager } from './PeerSyncManager.js';
 import { RecordingEngine } from './RecordingEngine.js';
 import { VUMeter } from './VUMeter.js';
 import { Metronome } from './Metronome.js';
@@ -86,6 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Initialize Peer Connection
     const peerConnection = new PeerConnection();
     peerConnection.init();
+    const peerSyncManager = new PeerSyncManager(peerConnection, db, renderer, processor, audioCtx, playbackEngine);
 
     // 4. Initialize Audio Devices
     async function initAudioDevices() {
@@ -257,6 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await db.saveMetadata(lastDeletedTrack);
                     renderer.addTrack(lastDeletedTrack);
                     console.log(`Restored track ${lastDeletedTrack.filename}`);
+                    document.dispatchEvent(new CustomEvent('track-restored', { detail: { track: lastDeletedTrack } }));
                     lastDeletedTrack = null;
                     undoBtn.style.display = 'none';
                 } catch (err) {
@@ -348,6 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Reset input
         directoryPicker.value = '';
         console.log('Upload complete.');
+        document.dispatchEvent(new CustomEvent('upload-complete'));
     });
 
     /**

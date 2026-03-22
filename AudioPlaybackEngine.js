@@ -43,9 +43,9 @@ export class AudioPlaybackEngine {
         const nodes = this.trackNodes.get(filename);
         if (nodes) {
             const now = this.audioCtx.currentTime;
-            nodes.panner.pan.setTargetAtTime(pan, now, 0.05);
-            nodes.highpass.frequency.setTargetAtTime(hpFreq, now, 0.05);
-            nodes.lowpass.frequency.setTargetAtTime(lpFreq, now, 0.05);
+            if (pan !== undefined) nodes.panner.pan.setTargetAtTime(pan, now, 0.05);
+            if (hpFreq !== undefined) nodes.highpass.frequency.setTargetAtTime(hpFreq, now, 0.05);
+            if (lpFreq !== undefined) nodes.lowpass.frequency.setTargetAtTime(lpFreq, now, 0.05);
         }
     }
 
@@ -174,6 +174,21 @@ export class AudioPlaybackEngine {
         });
 
         return masterStartTime;
+    }
+
+    /**
+     * Deletes a track's audio nodes and cached buffer.
+     */
+    deleteTrackNodes(filename) {
+        const nodes = this.trackNodes.get(filename);
+        if (nodes) {
+            nodes.panner.disconnect();
+            nodes.lowpass.disconnect();
+            nodes.highpass.disconnect();
+            nodes.gain.disconnect();
+            this.trackNodes.delete(filename);
+        }
+        this.bufferCache.delete(filename);
     }
 
     /**
