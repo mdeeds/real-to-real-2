@@ -11,6 +11,7 @@ import { Metronome } from './Metronome.js';
 document.addEventListener('DOMContentLoaded', async () => {
     const uploadButton = document.getElementById('upload-btn');
     const downloadButton = document.getElementById('download-btn');
+    const resetBtn = document.getElementById('reset-btn');
     const audioInputBtn = document.getElementById('audio-input-btn');
     const audioOutputBtn = document.getElementById('audio-output-btn');
     const directoryPicker = document.getElementById('directory-picker');
@@ -197,6 +198,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     uploadButton.addEventListener('click', () => {
         directoryPicker.click();
     });
+
+    /**
+     * --- Reset Logic ---
+     * Drops the entire IndexedDB database and reloads the page.
+     */
+    if (resetBtn) {
+        resetBtn.addEventListener('click', async () => {
+            try {
+                await db.deleteEntireDatabase();
+                console.log("Database deleted successfully.");
+                window.location.reload();
+            } catch (err) {
+                console.error("Failed to delete database:", err);
+            }
+        });
+    }
 
     /**
      * --- Playback Logic ---

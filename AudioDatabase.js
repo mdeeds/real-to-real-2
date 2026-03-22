@@ -137,6 +137,22 @@ export class AudioDatabase {
         return this._request('audio_buffers', 'readonly', store => store.get(filename));
     }
 
+    async deleteEntireDatabase() {
+        if (this.db) {
+            this.db.close();
+            this.db = null;
+        }
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.deleteDatabase(this.dbName);
+            request.onsuccess = () => resolve();
+            request.onerror = (event) => reject(event.target.error);
+            request.onblocked = () => {
+                console.warn('Database deletion blocked. Close other tabs.');
+                resolve();
+            };
+        });
+    }
+
     async saveAudioBuffer(filename, buffer) {
         return this._request('audio_buffers', 'readwrite', store => store.put(buffer, filename));
     }
