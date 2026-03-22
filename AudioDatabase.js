@@ -79,12 +79,50 @@ export class AudioDatabase {
         });
     }
 
+    _reconstructPeaks(peaks) {
+        if (!peaks) return null;
+        const reconstructed = {};
+        for (const res in peaks) {
+            reconstructed[res] = {};
+            for (const key of ['min', 'max', 'rms']) {
+                const data = peaks[res][key];
+                if (!data) continue;
+                
+                if (data instanceof Float32Array) {
+                    reconstructed[res][key] = data;
+                } else if (data instanceof ArrayBuffer) {
+                    reconstructed[res][key] = new Float32Array(data);
+                } else if (data.buffer instanceof ArrayBuffer) {
+                    reconstructed[res][key] = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+                } else if (Array.isArray(data)) {
+                    reconstructed[res][key] = new Float32Array(data);
+                } else if (typeof data === 'object') {
+                    const values = Object.values(data);
+                    reconstructed[res][key] = new Float32Array(values);
+                }
+            }
+        }
+        return reconstructed;
+    }
+
     async getMetadata(filename) {
-        return this._request('project_metadata', 'readonly', store => store.get(filename));
+        const meta = await this._request('project_metadata', 'readonly', store => store.get(filename));
+        if (meta && meta.renderCache) {
+            meta.renderCache = this._reconstructPeaks(meta.renderCache);
+        }
+        return meta;
     }
 
     async getAllMetadata() {
-        return this._request('project_metadata', 'readonly', store => store.getAll());
+        const metas = await this._request('project_metadata', 'readonly', store => store.getAll());
+        if (metas) {
+            metas.forEach(meta => {
+                if (meta.renderCache) {
+                    meta.renderCache = this._reconstructPeaks(meta.renderCache);
+                }
+            });
+        }
+        return metas;
     }
 
     async saveMetadata(metadata) {

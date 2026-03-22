@@ -124,6 +124,34 @@ export class PeerSyncManager {
         }
     }
 
+    _reconstructPeaks(peaks) {
+        if (!peaks) return null;
+        const reconstructed = {};
+        for (const res in peaks) {
+            reconstructed[res] = {};
+            for (const key of ['min', 'max', 'rms']) {
+                const data = peaks[res][key];
+                if (!data) continue;
+                
+                if (data instanceof Float32Array) {
+                    reconstructed[res][key] = data;
+                } else if (data instanceof ArrayBuffer) {
+                    reconstructed[res][key] = new Float32Array(data);
+                } else if (data.buffer instanceof ArrayBuffer) {
+                    // It's a typed array like Uint8Array
+                    reconstructed[res][key] = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+                } else if (Array.isArray(data)) {
+                    reconstructed[res][key] = new Float32Array(data);
+                } else if (typeof data === 'object') {
+                    // JSON serialized object
+                    const values = Object.values(data);
+                    reconstructed[res][key] = new Float32Array(values);
+                }
+            }
+        }
+        return reconstructed;
+    }
+
     async handleManifest(remoteManifest) {
         console.log(`[PeerSync] Received manifest with ${remoteManifest.length} tracks.`);
         
@@ -135,9 +163,10 @@ export class PeerSyncManager {
                 
                 // Save the metadata immediately so we can render the placeholder/peaks
                 // We'll mark it as not downloaded, but we have the peaks from the manifest
+                const reconstructedPeaks = this._reconstructPeaks(remoteTrack.peaks);
                 const newMeta = {
                     ...remoteTrack,
-                    renderCache: remoteTrack.peaks,
+                    renderCache: reconstructedPeaks,
                     isDownloaded: false
                 };
                 await this.db.saveMetadata(newMeta);
