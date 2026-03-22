@@ -11,8 +11,10 @@ export class AudioMetadata {
      * @param {number} [trackIndex=0] - Vertical order of the track.
      * @param {Object} [renderCache=null] - Object containing pre-calculated Min/Max/RMS Float32Arrays.
      * @param {boolean} [isDownloaded=false] - Whether the file has been downloaded or uploaded already.
+     * @param {number} [version=1] - Version number for synchronization.
+     * @param {number} [updatedAt=Date.now()] - Timestamp of last metadata update.
      */
-    constructor(filename, size, lastModified, startTime = 0, trackIndex = 0, renderCache = null, isDownloaded = false) {
+    constructor(filename, size, lastModified, startTime = 0, trackIndex = 0, renderCache = null, isDownloaded = false, version = 1, updatedAt = Date.now()) {
         this.filename = filename;
         this.size = size;
         this.lastModified = lastModified;
@@ -20,6 +22,8 @@ export class AudioMetadata {
         this.trackIndex = trackIndex;
         this.renderCache = renderCache;
         this.isDownloaded = isDownloaded;
+        this.version = version;
+        this.updatedAt = updatedAt;
     }
 }
 

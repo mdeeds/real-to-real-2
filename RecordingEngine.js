@@ -206,7 +206,8 @@ export class RecordingEngine {
                 file.lastModified,
                 exactTimelineStartTime, // Allow negative start times for pre-roll before 0
                 trackIndex,
-                peaks
+                peaks,
+                true // isDownloaded
             );
 
             console.log(`[RecordingEngine] Saving metadata to DB...`);

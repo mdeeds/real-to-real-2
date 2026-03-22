@@ -61,6 +61,8 @@ export class PeerSyncManager {
                 pan: t.pan,
                 hpFreq: t.hpFreq,
                 lpFreq: t.lpFreq,
+                version: t.version || 1,
+                updatedAt: t.updatedAt || 0,
                 peaks: t.renderCache // Send peaks so the other side can render immediately
             }));
 
@@ -80,7 +82,9 @@ export class PeerSyncManager {
             trackIndex: t.trackIndex,
             pan: t.pan,
             hpFreq: t.hpFreq,
-            lpFreq: t.lpFreq
+            lpFreq: t.lpFreq,
+            version: t.version || 1,
+            updatedAt: t.updatedAt || 0
         }));
 
         this.peerConnection.sendData({
@@ -184,8 +188,6 @@ export class PeerSyncManager {
                 });
             } else {
                 // Check if we need to update metadata (e.g. they moved it)
-                // For simplicity, we'll just accept their metadata if it differs in startTime etc.
-                // In a real app, you'd want conflict resolution based on timestamps.
                 let updated = false;
                 
                 const remotePan = remoteTrack.pan || 0;
@@ -194,18 +196,23 @@ export class PeerSyncManager {
                 const localPan = localTrack.pan || 0;
                 const localHpFreq = localTrack.hpFreq || 20;
                 const localLpFreq = localTrack.lpFreq || 20000;
+                
+                const remoteVersion = remoteTrack.version || 1;
+                const localVersion = localTrack.version || 1;
+                const remoteUpdatedAt = remoteTrack.updatedAt || 0;
+                const localUpdatedAt = localTrack.updatedAt || 0;
 
-                if (localTrack.startTime !== remoteTrack.startTime || 
-                    localTrack.trackIndex !== remoteTrack.trackIndex ||
-                    localPan !== remotePan ||
-                    localHpFreq !== remoteHpFreq ||
-                    localLpFreq !== remoteLpFreq) {
-                    
+                const shouldUpdate = remoteVersion > localVersion || 
+                                     (remoteVersion === localVersion && remoteUpdatedAt > localUpdatedAt);
+
+                if (shouldUpdate) {
                     localTrack.startTime = remoteTrack.startTime;
                     localTrack.trackIndex = remoteTrack.trackIndex;
                     localTrack.pan = remotePan;
                     localTrack.hpFreq = remoteHpFreq;
                     localTrack.lpFreq = remoteLpFreq;
+                    localTrack.version = remoteVersion;
+                    localTrack.updatedAt = remoteUpdatedAt;
                     
                     await this.db.saveMetadata(localTrack);
                     updated = true;
@@ -220,6 +227,8 @@ export class PeerSyncManager {
                         renderTrack.pan = localTrack.pan;
                         renderTrack.hpFreq = localTrack.hpFreq;
                         renderTrack.lpFreq = localTrack.lpFreq;
+                        renderTrack.version = localTrack.version;
+                        renderTrack.updatedAt = localTrack.updatedAt;
                     }
                     this.playbackEngine.updateTrackNodes(localTrack.filename, localTrack.pan, localTrack.hpFreq, localTrack.lpFreq);
                     this.renderer.draw();
@@ -232,23 +241,37 @@ export class PeerSyncManager {
         for (const update of updates) {
             const localTrack = await this.db.getMetadata(update.filename);
             if (localTrack) {
-                localTrack.startTime = update.startTime;
-                localTrack.trackIndex = update.trackIndex;
-                localTrack.pan = update.pan || 0;
-                localTrack.hpFreq = update.hpFreq || 20;
-                localTrack.lpFreq = update.lpFreq || 20000;
-                
-                await this.db.saveMetadata(localTrack);
-                
-                const renderTrack = this.renderer.tracks.find(t => t.filename === localTrack.filename);
-                if (renderTrack) {
-                    renderTrack.startTime = localTrack.startTime;
-                    renderTrack.trackIndex = localTrack.trackIndex;
-                    renderTrack.pan = localTrack.pan;
-                    renderTrack.hpFreq = localTrack.hpFreq;
-                    renderTrack.lpFreq = localTrack.lpFreq;
+                const remoteVersion = update.version || 1;
+                const localVersion = localTrack.version || 1;
+                const remoteUpdatedAt = update.updatedAt || 0;
+                const localUpdatedAt = localTrack.updatedAt || 0;
+
+                const shouldUpdate = remoteVersion > localVersion || 
+                                     (remoteVersion === localVersion && remoteUpdatedAt > localUpdatedAt);
+
+                if (shouldUpdate) {
+                    localTrack.startTime = update.startTime;
+                    localTrack.trackIndex = update.trackIndex;
+                    localTrack.pan = update.pan || 0;
+                    localTrack.hpFreq = update.hpFreq || 20;
+                    localTrack.lpFreq = update.lpFreq || 20000;
+                    localTrack.version = remoteVersion;
+                    localTrack.updatedAt = remoteUpdatedAt;
+                    
+                    await this.db.saveMetadata(localTrack);
+                    
+                    const renderTrack = this.renderer.tracks.find(t => t.filename === localTrack.filename);
+                    if (renderTrack) {
+                        renderTrack.startTime = localTrack.startTime;
+                        renderTrack.trackIndex = localTrack.trackIndex;
+                        renderTrack.pan = localTrack.pan;
+                        renderTrack.hpFreq = localTrack.hpFreq;
+                        renderTrack.lpFreq = localTrack.lpFreq;
+                        renderTrack.version = localTrack.version;
+                        renderTrack.updatedAt = localTrack.updatedAt;
+                    }
+                    this.playbackEngine.updateTrackNodes(localTrack.filename, localTrack.pan, localTrack.hpFreq, localTrack.lpFreq);
                 }
-                this.playbackEngine.updateTrackNodes(localTrack.filename, localTrack.pan, localTrack.hpFreq, localTrack.lpFreq);
             }
         }
         this.renderer.draw();

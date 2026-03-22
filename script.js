@@ -276,6 +276,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { tracks } = e.detail;
         try {
             for (const track of tracks) {
+                track.version = (track.version || 1) + 1;
+                track.updatedAt = Date.now();
                 await db.saveMetadata(track);
             }
             console.log('Saved updated track positions to database.');
@@ -301,6 +303,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         undoBtn.addEventListener('click', async () => {
             if (lastDeletedTrack) {
                 try {
+                    lastDeletedTrack.version = (lastDeletedTrack.version || 1) + 1;
+                    lastDeletedTrack.updatedAt = Date.now();
                     await db.saveMetadata(lastDeletedTrack);
                     renderer.addTrack(lastDeletedTrack);
                     console.log(`Restored track ${lastDeletedTrack.filename}`);
